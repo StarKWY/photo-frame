@@ -1,3 +1,10 @@
 .DS_Store
 node_modules/
 *.log
+
+# 测试脚本产出的临时预览页 / 截图，别进仓库
+tests/.tmp/
+*.png.tmp
+
+# macOS 资源分叉文件（AppleDouble），常见于外置盘或压缩包解压后
+._*

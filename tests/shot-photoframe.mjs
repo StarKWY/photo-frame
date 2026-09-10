@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-/* 生成用于无头 Chrome 截图的预览页（临时文件，跑完会删） */
-import { readFileSync, writeFileSync } from 'node:fs';
+/* 生成用于无头 Chrome 截图的预览页（临时文件，统一落在 tests/.tmp/，已被 gitignore） */
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
+// 临时预览页收在 tests/.tmp/ 下，别再往仓库根目录丢文件
+const TMP = join(DIR, 'tests', '.tmp');
+mkdirSync(TMP, { recursive: true });
 const src = readFileSync(join(DIR, 'index.html'), 'utf8');
 
 const P = (o) => JSON.stringify(o);
 
-function page(name, body) {
+function page(name, body, theme) {
   const inject = [
     '<scr' + 'ipt>',
     '(function(){',
@@ -24,8 +27,15 @@ function page(name, body) {
     '})();',
     '</scr' + 'ipt>'
   ].join('\n');
-  writeFileSync(`${DIR}/._shot_${name}.html`, src.replace('</body>', inject + '\n</body>'));
-  console.log('built', name);
+  // 深色不能只把 data-theme 属性改掉了事：必须在主题引导脚本之前写好 localStorage，
+  // 走用户真正会走的那条路径（顺带把防白闪逻辑一起验到）
+  let html = src;
+  if (theme){
+    html = html.replace('<script id="theme-boot">',
+      '<script>try{localStorage.setItem("photoframe.theme.v1","' + theme + '")}catch(e){}</script>\n<script id="theme-boot">');
+  }
+  writeFileSync(join(TMP, 'shot_' + name + '.html'), html.replace('</body>', inject + '\n</body>'));
+  console.log('built', name + (theme ? ' [' + theme + ']' : ''));
 }
 
 /* 造一张像照片的合成图 */
@@ -195,5 +205,21 @@ page('d_prog', setOpts(
   { template:'minimal', ratio:'orig', pad:6, format:'image/jpeg', quality:92 },
   "document.getElementById('actionbar').classList.add('busy'); document.getElementById('prog').hidden = false; setProgress(5, 12); document.getElementById('panelScroll').scrollTop = 99999; await new Promise(r => setTimeout(r, 300));"
 ));
+
+/* ---------- 深色主题：桌面 / 移动各来一张 ---------- */
+page('d_dark_tpl', setOpts(
+  Object.assign({}, TPL_OPTS.minimal, { ratio:'orig' }),
+  "setTab('tpl'); await new Promise(r => setTimeout(r, 400));"
+), 'dark');
+
+page('d_dark_out', setOpts(
+  { template:'minimal', ratio:'orig', pad:6, format:'image/jpeg', quality:92, outSize:'2048', keepExif:true, overlay:false, mark:'none' },
+  "setTab('out'); document.getElementById('panelScroll').scrollTop = 99999; await new Promise(r => setTimeout(r, 1600));"
+), 'dark');
+
+page('m_dark', setOptsPort(
+  Object.assign({}, M_BASE, { template:'minimal', bg:'#FFFFFF', textColor:'#1B1B19', family:'sans', fontSize:2.2, radius:0 }),
+  "setTab('out'); document.getElementById('panelScroll').scrollTop = 0; await new Promise(r => setTimeout(r, 1600));"
+), 'dark');
 
 console.log('done');

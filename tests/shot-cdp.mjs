@@ -71,7 +71,7 @@ try {
   await waitPort();
 
   for (const name of PAGES) {
-    const url = `file://${DIR}/._shot_${name}.html`;
+    const url = `file://${DIR}/tests/.tmp/shot_${name}.html`;
     let target;
     try {
       const r = await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' });
