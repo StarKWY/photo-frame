@@ -121,7 +121,8 @@ fi
 
 # ---------------------------------------------------------------- 5. 就位
 SIZE="$(du -sh "$APP" | cut -f1)"
-say "完成：$APP（$SIZE）"
+# 注意：变量后跟全角括号必须加花括号，否则 bash 会把括号并入变量名（set -u 下直接炸）
+say "完成：${APP}（${SIZE}）"
 echo
 echo "  打开：open \"$APP\""
 echo "  自测：node tests/run-selftest.mjs"

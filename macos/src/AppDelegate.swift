@@ -61,6 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         if !isSelfTest { NSApp.activate(ignoringOtherApps: true) }
 
+        // 页面首条主题消息可能先于窗口就绪到达，这里补一次同步
+        shell.syncWindowAppearance()
+
         shell.primeOpenPanel(with: primeFiles)
         shell.load()
 

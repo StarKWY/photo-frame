@@ -16,13 +16,19 @@ function buildExifJpeg() {
   const makeStr = 'NIKON CORPORATION', modelStr = 'NIKON Z 8';
   const makeB = [...makeStr].map(c => c.charCodeAt(0)).concat(0);
   const modelB = [...modelStr].map(c => c.charCodeAt(0)).concat(0);
+  // 日期标签：0x9003 在 ExifIFD（拍摄时间），0x0132 在 IFD0（修改时间）。
+  // 两者故意差一天，断言「用的是拍摄时间」时才能区分。
+  const dtOrig = [...'2023:07:15 10:30:00'].map(c => c.charCodeAt(0)).concat(0);
+  const dtMod  = [...'2023:07:16 08:00:00'].map(c => c.charCodeAt(0)).concat(0);
 
-  const IFD0_OFF = 8, IFD0_SIZE = 2 + 3 * 12 + 4;
+  const IFD0_OFF = 8, IFD0_SIZE = 2 + 4 * 12 + 4;
   const MAKE_OFF = IFD0_OFF + IFD0_SIZE;
   const MODEL_OFF = MAKE_OFF + makeB.length;
   const EXIF_OFF = MODEL_OFF + modelB.length;
-  const EXIF_SIZE = 2 + 4 * 12 + 4;
-  const D_OFF = EXIF_OFF + EXIF_SIZE;
+  const EXIF_SIZE = 2 + 5 * 12 + 4;
+  const DT0_OFF = EXIF_OFF + EXIF_SIZE;
+  const DT3_OFF = DT0_OFF + dtMod.length;
+  const D_OFF = DT3_OFF + dtOrig.length;
   const TOTAL = D_OFF + 24;
 
   const t = new Uint8Array(TOTAL);
@@ -33,19 +39,23 @@ function buildExifJpeg() {
   dv.setUint16(2, 0x002A, true);
   dv.setUint32(4, IFD0_OFF, true);
 
-  dv.setUint16(IFD0_OFF, 3, true);
+  dv.setUint16(IFD0_OFF, 4, true);
   let e = entry(IFD0_OFF, 0);
   dv.setUint16(e, 0x010F, true); dv.setUint16(e + 2, 2, true); dv.setUint32(e + 4, makeB.length, true); dv.setUint32(e + 8, MAKE_OFF, true);
   e = entry(IFD0_OFF, 1);
   dv.setUint16(e, 0x0110, true); dv.setUint16(e + 2, 2, true); dv.setUint32(e + 4, modelB.length, true); dv.setUint32(e + 8, MODEL_OFF, true);
   e = entry(IFD0_OFF, 2);
+  dv.setUint16(e, 0x0132, true); dv.setUint16(e + 2, 2, true); dv.setUint32(e + 4, dtMod.length, true); dv.setUint32(e + 8, DT0_OFF, true);
+  e = entry(IFD0_OFF, 3);
   dv.setUint16(e, 0x8769, true); dv.setUint16(e + 2, 4, true); dv.setUint32(e + 4, 1, true); dv.setUint32(e + 8, EXIF_OFF, true);
-  dv.setUint32(IFD0_OFF + 2 + 3 * 12, 0, true);
+  dv.setUint32(IFD0_OFF + 2 + 4 * 12, 0, true);
 
   makeB.forEach((b, i) => t[MAKE_OFF + i] = b);
   modelB.forEach((b, i) => t[MODEL_OFF + i] = b);
+  dtMod.forEach((b, i) => t[DT0_OFF + i] = b);
+  dtOrig.forEach((b, i) => t[DT3_OFF + i] = b);
 
-  dv.setUint16(EXIF_OFF, 4, true);
+  dv.setUint16(EXIF_OFF, 5, true);
   e = entry(EXIF_OFF, 0);
   dv.setUint16(e, 0x829A, true); dv.setUint16(e + 2, 5, true); dv.setUint32(e + 4, 1, true); dv.setUint32(e + 8, D_OFF, true);
   e = entry(EXIF_OFF, 1);
@@ -54,7 +64,9 @@ function buildExifJpeg() {
   dv.setUint16(e, 0x8827, true); dv.setUint16(e + 2, 3, true); dv.setUint32(e + 4, 1, true); dv.setUint16(e + 8, 200, true);
   e = entry(EXIF_OFF, 3);
   dv.setUint16(e, 0x920A, true); dv.setUint16(e + 2, 5, true); dv.setUint32(e + 4, 1, true); dv.setUint32(e + 8, D_OFF + 16, true);
-  dv.setUint32(EXIF_OFF + 2 + 4 * 12, 0, true);
+  e = entry(EXIF_OFF, 4);
+  dv.setUint16(e, 0x9003, true); dv.setUint16(e + 2, 2, true); dv.setUint32(e + 4, dtOrig.length, true); dv.setUint32(e + 8, DT3_OFF, true);
+  dv.setUint32(EXIF_OFF + 2 + 5 * 12, 0, true);
 
   dv.setUint32(D_OFF, 1, true); dv.setUint32(D_OFF + 4, 200, true);
   dv.setUint32(D_OFF + 8, 18, true); dv.setUint32(D_OFF + 12, 10, true);
@@ -394,6 +406,11 @@ check('EXIF 读到光圈', Math.abs(exif.fNumber - 1.8) < 1e-9, String(exif.fNum
 check('EXIF 读到快门', Math.abs(exif.exposureTime - 0.005) < 1e-9, String(exif.exposureTime));
 check('EXIF 读到 ISO', exif.iso === 200, String(exif.iso));
 check('EXIF 读到焦距', exif.focalLength === 35, String(exif.focalLength));
+/* 日期标签位置回归：0x9003 在 ExifIFD、0x0132 在 IFD0。
+   曾经的 bug 是把 0x9003 写在 IFD0 循环里找（永远命中不了），
+   结果 fDate 回落到系统当前日期。 */
+check('EXIF 读到拍摄时间（ExifIFD 0x9003）', exif.dateTimeOriginal === '2023:07:15 10:30:00', String(exif.dateTimeOriginal));
+check('EXIF 读到修改时间（IFD0 0x0132）', exif.dateTime === '2023:07:16 08:00:00', String(exif.dateTime));
 const cleaned = api.cleanModel(exif);
 check('机型清洗掉厂商前缀', cleaned === 'Z 8', cleaned);
 const params = api.composeParams(exif);
@@ -421,7 +438,8 @@ check('缩略图条带「+」添加入口', $$('#thumbs .thumb.add').length === 
 check('有照片时缩略图条展开', D.getElementById('thumbs').hidden === false);
 check('自动填充机型', D.getElementById('fModel').value === 'Z 8', D.getElementById('fModel').value);
 check('自动填充参数', D.getElementById('fParams').value.indexOf('f/1.8') === 0, D.getElementById('fParams').value);
-check('自动填充日期', /^\d{4}\.\d{2}\.\d{2}$/.test(D.getElementById('fDate').value), D.getElementById('fDate').value);
+check('自动填充日期', D.getElementById('fDate').value === '2023.07.15', D.getElementById('fDate').value);
+check('填充的是拍摄时间而非修改时间/当前日期', D.getElementById('fDate').value !== '2023.07.16' && D.getElementById('fDate').value !== new Date().toISOString().slice(0, 10).replace(/-/g, '.'), D.getElementById('fDate').value);
 check('EXIF 提示文案', D.getElementById('exifNote').textContent.includes('已读取 EXIF'), D.getElementById('exifNote').textContent);
 check('顶栏照片计数', D.getElementById('hint').textContent.includes('1 张照片'), D.getElementById('hint').textContent);
 

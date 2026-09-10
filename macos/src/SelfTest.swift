@@ -256,6 +256,15 @@ final class SelfTestRunner {
         let t2 = await js("document.documentElement.getAttribute('data-theme')") as? String
         check("主题切换生效", t1 != nil && t2 != nil && t1 != t2, "\(t1 ?? "nil") → \(t2 ?? "nil")")
 
+        // 深色时窗口 appearance 必须同步为 darkAqua ——
+        // 标题栏（红绿灯那一行）颜色跟 CSS 无关，不同步就是白条
+        _ = await waitUpTo(3) { self.shell.currentTheme == t2 }
+        let winAppearance = shell.webView.window?.appearance?.name.rawValue ?? "(nil)"
+        let appearanceMatches = (t2 == "dark" && winAppearance == "NSAppearanceNameDarkAqua")
+                              || (t2 == "light" && winAppearance == "NSAppearanceNameAqua")
+        check("窗口标题栏外观跟随页面主题", appearanceMatches,
+              "page=\(t2 ?? "?") window=\(winAppearance)")
+
         // ---------- 8. 全程无 JS 报错 ----------
         let errs = (await js("JSON.stringify(window.__pfErrors || [])") as? String) ?? "[]"
         let errList = (try? JSONSerialization.jsonObject(with: Data(errs.utf8))) as? [String] ?? []

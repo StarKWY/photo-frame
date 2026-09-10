@@ -121,6 +121,21 @@ final class SchemeServer: NSObject, WKURLSchemeHandler {
     }
 }
 
+// MARK: - 主题桥：页面 data-theme → 原生窗口 appearance
+
+/// 标题栏（红绿灯按钮那一行）的颜色由 NSWindow.appearance 决定，跟页面 CSS 无关。
+/// 用户在页面里切深色时必须同步设置窗口外观，否则内容黑了、标题栏还白着。
+/// 页面侧由 endScript 里的 MutationObserver 上报，这里只管接收和落地。
+final class ThemeBridge: NSObject, WKScriptMessageHandler {
+    var onTheme: ((String) -> Void)?
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        guard message.name == "pfTheme", let t = message.body as? String else { return }
+        let cb = onTheme
+        DispatchQueue.main.async { cb?(t) }
+    }
+}
+
 // MARK: - 宿主
 
 final class WebShell: NSObject {
@@ -131,6 +146,7 @@ final class WebShell: NSObject {
     private let server: SchemeServer
     private let mode: String
     private let verbose: Bool
+    private let themeBridge = ThemeBridge()
 
     /// 自测模式下保存面板不弹，直接落到这个目录
     private var autoSaveDir: URL?
@@ -167,6 +183,8 @@ final class WebShell: NSObject {
             WKUserScript(source: WebShell.bootScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         cfg.userContentController.addUserScript(
             WKUserScript(source: WebShell.endScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        // 主题消息处理器同样必须在 WebView 创建前注册（配置会被拷走）
+        cfg.userContentController.add(themeBridge, name: "pfTheme")
 
         self.mode = mode
         self.verbose = verbose
@@ -184,6 +202,23 @@ final class WebShell: NSObject {
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = false
         if #available(macOS 13.3, *) { webView.isInspectable = true }
+
+        // 页面主题 → 窗口标题栏外观（初始上报在页面 documentEnd 就会发生）
+        themeBridge.onTheme = { [weak self] t in self?.applyWindowAppearance(t) }
+    }
+
+    /// 把页面主题落到原生窗口：深色 → darkAqua，浅色 → aqua。
+    /// 窗口可能晚于首条消息创建（自测 offscreen 场景），所以记录当前值，窗口出现后再补一次。
+    private(set) var currentTheme = "light"
+    private func applyWindowAppearance(_ theme: String) {
+        currentTheme = theme
+        let name: NSAppearance.Name = theme == "dark" ? .darkAqua : .aqua
+        webView.window?.appearance = NSAppearance(named: name)
+    }
+
+    /// 窗口就绪后调用：补一次当前主题（覆盖「窗口比页面首条主题消息晚创建」的时序）
+    func syncWindowAppearance() {
+        applyWindowAppearance(currentTheme)
     }
 
     // MARK: 注入脚本
@@ -203,13 +238,25 @@ final class WebShell: NSObject {
     })();
     """
 
-    /// documentEnd：隐私徽标改成实话实说（应用确实在 WebKit 层断网了）
+    /// documentEnd：隐私徽标改写 + 主题上报
     private static let endScript = """
     (function(){
       try {
-        if (!window.__PF_SHELL__ || !window.__PF_SHELL__.offline) return;
-        var b = document.getElementById('privacyBadge');
-        if (b) b.textContent = '照片不出本机 · 应用完全离线运行';
+        if (!window.__PF_SHELL__) return;
+        if (window.__PF_SHELL__.offline) {
+          var b = document.getElementById('privacyBadge');
+          if (b) b.textContent = '照片不出本机 · 应用完全离线运行';
+        }
+        // 把 data-theme 报给原生壳：NSWindow 标题栏颜色跟 CSS 无关，
+        // 页面切深色时窗口 appearance 必须同步，否则标题栏还白着。
+        var report = function(){
+          var t = document.documentElement.getAttribute('data-theme') || 'light';
+          try { window.webkit.messageHandlers.pfTheme.postMessage(t); } catch(e){}
+        };
+        report();
+        new MutationObserver(report).observe(document.documentElement, {
+          attributes: true, attributeFilter: ['data-theme']
+        });
       } catch (e) {}
     })();
     """

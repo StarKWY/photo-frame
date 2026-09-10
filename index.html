@@ -956,7 +956,7 @@ function parseExif(buffer){
       const sz = (TYPE_SIZE[type] || 1) * count;
       if (tag === 0x010F) out.make = gStr(valOff(e, sz), count);
       else if (tag === 0x0110) out.model = gStr(valOff(e, sz), count);
-      else if (tag === 0x9003 || tag === 0x9004){ const s = gStr(valOff(e, sz), count); if (tag === 0x9003) out.dateTimeOriginal = s; else out.dateTime = s; }
+      else if (tag === 0x0132){ const s = gStr(valOff(e, sz), count); if (!out.dateTime) out.dateTime = s; }
       else if (tag === 0x0131) out.software = gStr(valOff(e, sz), count);
       else if (tag === 0x8769) exifIfd = g32(e + 8);
     }
@@ -1003,6 +1003,10 @@ function parseExif(buffer){
       else if (tag === 0xA434){ const o = valOff(e, sz); out.lensModel = gStr(o, count); }
       else if (tag === 0xA433){ const o = valOff(e, sz); out.lensMake = gStr(o, count); }
       else if (tag === 0xA402){ const o = valOff(e, sz); if (o + 2 <= len) out.exposureProgram = g16(o); }
+      /* 拍摄日期在 EXIF 子 IFD 里，不在 IFD0：0x9003 原始拍摄时间（首选），
+         0x9004 数字化时间（次选）。字符串格式 "YYYY:MM:DD HH:MM:SS"。 */
+      else if (tag === 0x9003){ out.dateTimeOriginal = gStr(valOff(e, sz), count); }
+      else if (tag === 0x9004){ if (!out.dateTime) out.dateTime = gStr(valOff(e, sz), count); }
     }
   };
 
