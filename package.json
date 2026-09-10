@@ -1,0 +1,15 @@
+{
+  "name": "photo-frame",
+  "version": "1.0.0",
+  "private": true,
+  "description": "留白 · 边框水印工坊 —— 单文件照片加边框/水印工具，全部在本地处理，照片不上传",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/smoke-photoframe.mjs",
+    "test:layout": "node tests/check-preview-size.mjs",
+    "test:all": "npm test && npm run test:layout"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
+  }
+}
