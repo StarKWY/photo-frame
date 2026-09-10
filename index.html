@@ -3,13 +3,56 @@
 <head data-page-node-id="aSvBM56GDphCF9vKXiVEeA">
 <meta charset="utf-8" data-page-node-id="oUhKayAXHmyhCJwheJ7LHf">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" data-page-node-id="tGd9CBumwGEzrRkRcT7m1e">
-<meta name="color-scheme" content="light" data-page-node-id="WemWovwlkIUyBB1ExsrjuH">
+<meta name="color-scheme" content="light dark" data-page-node-id="WemWovwlkIUyBB1ExsrjuH">
+<meta name="theme-color" content="#ffffff">
 <title>留白 · 边框水印工坊</title>
+<script id="theme-boot">
+/* 主题必须在样式表之前落地，否则深色用户打开页面会看到一次白闪 */
+(function(){
+  try{
+    var t = localStorage.getItem('photoframe.theme.v1');
+    if (t !== 'light' && t !== 'dark'){
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    var r = document.documentElement;
+    r.setAttribute('data-theme', t);
+    r.style.colorScheme = t;
+  }catch(e){}
+})();
+</script>
 <style>
 *{box-sizing:border-box}
 :root{
-  --bg:#f4f4f2;--surface:#ffffff;--surface-2:#fafaf9;--line:#e6e5e0;--line-2:#d9d8d2;
-  --ink:#1b1b19;--ink-2:#6d6c67;--ink-3:#a3a29c;--radius:10px;--panel-w:352px;
+  --bg:#f4f4f2;--surface:#ffffff;--surface-2:#fafaf9;--surface-3:#f8f8f6;--hover:#f3f3f0;
+  --line:#e6e5e0;--line-2:#d9d8d2;
+  --ink:#1b1b19;--ink-2:#6d6c67;--ink-3:#a3a29c;--ink-4:#b5b4ae;--placeholder:#c2c1bb;
+  --on-ink:#ffffff;--ink-hover:#333330;
+  --sw-line:rgba(0,0,0,.13);--scroll:#dcdbd5;
+  --badge-bg:#eef4ee;--badge-line:#dbe7dc;--badge-ink:#4a6b52;
+  --chip-on-bg:#eef1f5;--chip-on-line:#c8d3e0;--chip-on-ink:#2f4a68;
+  --warn:#8a6412;--danger:#a33;--accent:#1b1b19;
+  --thumb-bg:#eee;--thumb-ph:#ececea;--thumb-ld:rgba(255,255,255,.7);
+  --zoom-bg:rgba(255,255,255,.88);
+  --shadow:0 1px 2px rgba(0,0,0,.07),0 10px 34px rgba(0,0,0,.11);
+  --radius:10px;--panel-w:352px;
+}
+/* 深色主题：只覆盖变量，不改任何布局尺寸，导出图片与主题无关 */
+[data-theme=dark]{
+  --bg:#1a1a19;--surface:#212120;--surface-2:#262625;--surface-3:#2e2e2c;--hover:#2b2b29;
+  --line:#33332f;--line-2:#454440;
+  /* 三级/四级文字与占位符在深色底上都会撞到对比度下限。注意最暗的底不是 --surface，
+     而是 --surface-2（说明框、拖放区用），阈值必须按最暗那层算：
+     #918f88 在 #262625 上 4.70:1、在 #212120 上 5.00:1。硬拉开层级就得牺牲可读性，
+     这里可读性优先，三者取同一值。 */
+  --ink:#f0efe9;--ink-2:#a8a79f;--ink-3:#918f88;--ink-4:#918f88;--placeholder:#918f88;
+  --on-ink:#1a1a19;--ink-hover:#d8d7d0;
+  --sw-line:rgba(255,255,255,.18);--scroll:#3d3c38;
+  --badge-bg:#1e2b22;--badge-line:#2c4133;--badge-ink:#8fbf9d;
+  --chip-on-bg:#23303d;--chip-on-line:#3a4d61;--chip-on-ink:#a8c4e0;
+  --warn:#d8a63f;--danger:#e07070;--accent:#e6e5dd;
+  --thumb-bg:#2a2a28;--thumb-ph:#252523;--thumb-ld:rgba(30,30,28,.72);
+  --zoom-bg:rgba(40,40,38,.88);
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 34px rgba(0,0,0,.55);
 }
 html,body{height:100%;margin:0}
 body{
@@ -33,11 +76,21 @@ header{
 .brand svg{display:block;flex:none}
 .brand-name{font-size:14px;font-weight:500;letter-spacing:.01em;white-space:nowrap}
 .badge{
-  font-size:11px;color:#4a6b52;background:#eef4ee;border:1px solid #dbe7dc;
+  font-size:11px;color:var(--badge-ink);background:var(--badge-bg);border:1px solid var(--badge-line);
   padding:3px 8px;border-radius:999px;white-space:nowrap;
 }
 .spacer{flex:1}
 .hint{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{
+  flex:none;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
+  border-radius:8px;cursor:pointer;transition:.13s;
+}
+.icon-btn:hover{color:var(--ink);border-color:var(--ink-3);background:var(--surface-2)}
+.icon-btn svg{display:block;width:18px;height:18px}
+.icon-btn .ico-sun{display:none}
+[data-theme=dark] .icon-btn .ico-sun{display:block}
+[data-theme=dark] .icon-btn .ico-moon{display:none}
 
 /* grid-template-rows 必须显式钉死：否则 auto 行会被画布内容撑大，
    而预览尺寸又是按容器算的 → 点一次模板就放大一圈，无限增长 */
@@ -53,7 +106,7 @@ main{flex:1;display:grid;grid-template-columns:var(--panel-w) 1fr;grid-template-
   -webkit-overflow-scrolling:touch;padding:16px 16px 20px;
 }
 .panel-scroll::-webkit-scrollbar{width:9px}
-.panel-scroll::-webkit-scrollbar-thumb{background:#dcdbd5;border-radius:9px;border:3px solid var(--surface)}
+.panel-scroll::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:9px;border:3px solid var(--surface)}
 
 /* 分组标签：桌面端隐藏，移动端才出现 */
 .tabs{display:none}
@@ -76,7 +129,7 @@ main{flex:1;display:grid;grid-template-columns:var(--panel-w) 1fr;grid-template-
   border:1px dashed var(--line-2);border-radius:var(--radius);background:var(--surface-2);
   padding:20px 14px;text-align:center;cursor:pointer;transition:.15s;
 }
-.drop:hover,.drop.over{border-color:var(--ink-2);background:#f3f3f0}
+.drop:hover,.drop.over{border-color:var(--ink-2);background:var(--hover)}
 .drop svg{opacity:.45;margin-bottom:7px}
 .drop-t{font-size:13px;font-weight:500}
 .drop-s{font-size:11px;color:var(--ink-3);margin-top:3px}
@@ -87,7 +140,7 @@ main{flex:1;display:grid;grid-template-columns:var(--panel-w) 1fr;grid-template-
   padding:9px 6px 8px;cursor:pointer;text-align:center;transition:.13s;
 }
 .tpl:hover{border-color:var(--ink-3)}
-.tpl.on{border-color:var(--ink);background:#f8f8f6;box-shadow:0 0 0 1px var(--ink) inset}
+.tpl.on{border-color:var(--ink);background:var(--surface-3);box-shadow:0 0 0 1px var(--ink) inset}
 .tpl svg{display:block;margin:0 auto 6px;width:52px;height:38px}
 .tpl-n{font-size:11.5px;color:var(--ink-2)}
 .tpl.on .tpl-n{color:var(--ink);font-weight:500}
@@ -98,7 +151,7 @@ main{flex:1;display:grid;grid-template-columns:var(--panel-w) 1fr;grid-template-
   font-size:11.5px;color:var(--ink-2);cursor:pointer;transition:.13s;white-space:nowrap;
 }
 .seg button:hover{border-color:var(--ink-3);color:var(--ink)}
-.seg button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.seg button.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
 
 input[type=range]{
   width:100%;-webkit-appearance:none;appearance:none;height:20px;background:transparent;margin:0;cursor:pointer;
@@ -106,14 +159,14 @@ input[type=range]{
 input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line-2);border-radius:3px}
 input[type=range]::-webkit-slider-thumb{
   -webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ink);
-  margin-top:-5.5px;border:2px solid #fff;box-shadow:0 0 0 1px var(--line-2);
+  margin-top:-5.5px;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line-2);
 }
 input[type=range]::-moz-range-track{height:3px;background:var(--line-2);border-radius:3px}
-input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #fff}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid var(--surface)}
 
 .swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .sw{
-  width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.13);cursor:pointer;
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--sw-line);cursor:pointer;
   padding:0;transition:.13s;position:relative;
 }
 .sw:hover{transform:scale(1.07)}
@@ -131,10 +184,10 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
 .row input[type=text]:focus{border-color:var(--ink-2)}
 
 .btn-mini{
-  flex:none;height:29px;padding:0 13px;border:1px solid var(--ink);background:var(--ink);color:#fff;
+  flex:none;height:29px;padding:0 13px;border:1px solid var(--ink);background:var(--ink);color:var(--on-ink);
   border-radius:7px;font-size:12.5px;cursor:pointer;transition:.13s;white-space:nowrap;
 }
-.btn-mini:hover{background:#333330}
+.btn-mini:hover{background:var(--ink-hover)}
 .btn-mini.ghost2{background:var(--surface);color:var(--ink-2);border-color:var(--line-2);font-weight:400}
 .btn-mini.ghost2:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-3)}
 .btn-mini.ghost2[hidden]{display:none}
@@ -153,22 +206,22 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
   width:100%;height:29px;padding:0 9px;border:1px solid var(--line-2);border-radius:7px;
   font-size:12.5px;color:var(--ink);background:var(--surface);outline:none;
 }
-.fld input:focus{border-color:var(--ink-2);background:#fff}
-.fld input::placeholder{color:#c2c1bb}
+.fld input:focus{border-color:var(--ink-2);background:var(--surface)}
+.fld input::placeholder{color:var(--placeholder)}
 
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
 .chip{
   padding:4px 9px;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;
   font-size:11px;color:var(--ink-3);cursor:pointer;transition:.13s;
 }
-.chip.on{background:#eef1f5;border-color:#c8d3e0;color:#2f4a68}
+.chip.on{background:var(--chip-on-bg);border-color:var(--chip-on-line);color:var(--chip-on-ink)}
 .chip.saved{color:var(--ink-2);border-color:var(--line-2);background:var(--surface-2);display:inline-flex;align-items:center;gap:6px;padding:4px 8px 4px 10px}
 .chip.saved:hover{border-color:var(--ink-3);color:var(--ink)}
 .chip.saved .del{font-style:normal;opacity:.4;font-size:13px;line-height:1;cursor:pointer;padding:0 1px}
-.chip.saved .del:hover{opacity:1;color:#a33}
+.chip.saved .del:hover{opacity:1;color:var(--danger)}
 
 .chk{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--ink-2);margin-top:9px}
-.chk input{width:14px;height:14px;accent-color:#1b1b19;cursor:pointer;margin:0;flex:none}
+.chk input{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;margin:0;flex:none}
 .sub{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 
 .out-info{
@@ -177,9 +230,9 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
 }
 .out-info b{font-weight:500;color:var(--ink)}
 .out-info .size{font-weight:500;color:var(--ink)}
-.out-info .size.heavy{color:#8a6412}
+.out-info .size.heavy{color:var(--warn)}
 .out-info .size.calc{color:var(--ink-3);font-weight:400}
-.out-info .note{color:#8a6412}
+.out-info .note{color:var(--warn)}
 .out-info .muted{color:var(--ink-3)}
 
 /* 批量导出的进度条 */
@@ -194,8 +247,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
   border-radius:8px;font-size:13px;color:var(--ink);cursor:pointer;transition:.13s;margin-top:8px;
 }
 .btn:hover{border-color:var(--ink-3);background:var(--surface-2)}
-.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:500}
-.btn.primary:hover{background:#333330}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--on-ink);font-weight:500}
+.btn.primary:hover{background:var(--ink-hover)}
 .btn.ghost{border-color:transparent;color:var(--ink-3);font-size:12px}
 .btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -207,12 +260,12 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
 }
 .logo-preview img{
   height:26px;max-width:74px;object-fit:contain;flex:none;
-  background:repeating-conic-gradient(#eceae5 0 25%,#f8f8f6 0 50%) 0 0/12px 12px;
+  background:repeating-conic-gradient(var(--thumb-ph) 0 25%,var(--surface-3) 0 50%) 0 0/12px 12px;
   border-radius:4px;padding:2px;
 }
 .logo-preview span{flex:1;min-width:0;font-size:11.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .logo-preview .x{font-style:normal;cursor:pointer;color:var(--ink-3);font-size:15px;line-height:1;flex:none}
-.logo-preview .x:hover{color:#a33}
+.logo-preview .x:hover{color:var(--danger)}
 
 /* -------------------------------------------------------------- 预览舞台 */
 .stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}
@@ -221,19 +274,19 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
   min-width:0;min-height:0;/* 容器高度只由父级决定，绝不被画布内容反向撑大 */
 }
 .canvas-area canvas{
-  max-width:100%;max-height:100%;border-radius:3px;background:#fff;
-  box-shadow:0 1px 2px rgba(0,0,0,.07),0 10px 34px rgba(0,0,0,.11);
+  max-width:100%;max-height:100%;border-radius:3px;background:var(--surface);
+  box-shadow:var(--shadow);
 }
 /* display:block 会盖掉 [hidden] 的 display:none，必须显式让 hidden 生效 */
 .canvas-area canvas:not([hidden]){display:block}
 .empty{text-align:center;color:var(--ink-3);user-select:none;padding:0 18px}
 .empty svg{opacity:.3;margin-bottom:12px}
 .empty p{margin:0;font-size:13px}
-.empty small{display:block;margin-top:6px;font-size:11.5px;color:#b5b4ae;line-height:1.6}
+.empty small{display:block;margin-top:6px;font-size:11.5px;color:var(--ink-4);line-height:1.6}
 
 .zoom{
   position:absolute;right:14px;bottom:14px;width:32px;height:32px;border-radius:8px;
-  border:1px solid var(--line-2);background:rgba(255,255,255,.88);color:var(--ink-2);
+  border:1px solid var(--line-2);background:var(--zoom-bg);color:var(--ink-2);
   font-size:14px;line-height:1;cursor:pointer;align-items:center;justify-content:center;
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:3;padding:0;
 }
@@ -250,16 +303,16 @@ body.max .canvas-area{padding:10px}
 }
 .thumbs[hidden]{display:none}
 .thumbs::-webkit-scrollbar{height:7px}
-.thumbs::-webkit-scrollbar-thumb{background:#dcdbd5;border-radius:7px}
+.thumbs::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:7px}
 .thumb{
   position:relative;flex:none;width:62px;height:62px;border-radius:8px;overflow:hidden;
-  border:1.5px solid transparent;cursor:pointer;background:#eee;
+  border:1.5px solid transparent;cursor:pointer;background:var(--thumb-bg);
 }
 .thumb.on{border-color:var(--ink)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb .ph{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:10px;color:var(--ink-3);background:#ececea;text-align:center;line-height:1.3;padding:3px;
+  font-size:10px;color:var(--ink-3);background:var(--thumb-ph);text-align:center;line-height:1.3;padding:3px;
 }
 .thumb .x{
   position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;
@@ -268,7 +321,7 @@ body.max .canvas-area{padding:10px}
 }
 .thumb:hover .x{opacity:1}
 .thumb .ld{
-  position:absolute;inset:0;background:rgba(255,255,255,.7);display:flex;
+  position:absolute;inset:0;background:var(--thumb-ld);display:flex;
   align-items:center;justify-content:center;font-size:10px;color:var(--ink-2);
 }
 .thumb.add{
@@ -280,7 +333,7 @@ body.max .canvas-area{padding:10px}
 
 .toast{
   position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
-  background:var(--ink);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:8px;
+  background:var(--ink);color:var(--on-ink);font-size:12.5px;padding:9px 16px;border-radius:8px;
   opacity:0;pointer-events:none;transition:.22s;z-index:99;max-width:80vw;text-align:center;
 }
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -317,7 +370,7 @@ body.max .canvas-area{padding:10px}
     border-radius:999px;font-size:12.5px;color:var(--ink-2);cursor:pointer;
     white-space:nowrap;transition:.13s;
   }
-  .tabs button.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:500}
+  .tabs button.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);font-weight:500}
   .panel-scroll{padding:13px 14px 16px}
   .panel-scroll .sec{margin-bottom:15px}
   .panel-scroll .sec.taboff{display:none}
@@ -354,15 +407,24 @@ body.max .canvas-area{padding:10px}
   <header data-page-node-id="Or8C0QHrWndlmoi8UEO7WZ">
     <div class="brand" data-page-node-id="VDfiShe4310p3lAmJQPyTe">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" data-page-node-id="Bbsg8EWkV5XTHtjawu2DuJ">
-        <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="#1b1b19" stroke-width="1.2" data-page-node-id="Aq1o9FmPrRLStNKDrFm1sd"/>
-        <rect x="5" y="5" width="10" height="7.5" rx="1" fill="#1b1b19" data-page-node-id="3uAU2oVJGyLZYDXZpAYV2m"/>
-        <rect x="5" y="14" width="6" height="1.4" rx=".7" fill="#a3a29c" data-page-node-id="PzEj4vfCONwwmzFiHDsmqw"/>
+        <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.2" data-page-node-id="Aq1o9FmPrRLStNKDrFm1sd"/>
+        <rect x="5" y="5" width="10" height="7.5" rx="1" fill="currentColor" data-page-node-id="3uAU2oVJGyLZYDXZpAYV2m"/>
+        <rect x="5" y="14" width="6" height="1.4" rx=".7" fill="currentColor" opacity=".45" data-page-node-id="PzEj4vfCONwwmzFiHDsmqw"/>
       </svg>
       <span class="brand-name" data-page-node-id="FgvxfKJoC9GGJIR0CQjvDi">留白 · 边框水印工坊</span>
     </div>
     <span class="badge" id="privacyBadge" data-page-node-id="ALdC37U8AY6zZxM8D0ezBH">照片不出本机 · 全部本地处理</span>
     <div class="spacer" data-page-node-id="opOPVk3eM4k6OqagTpLMcy"></div>
     <span class="hint" id="hint" data-page-node-id="7PR9ClZXoq1astbOviYJk7"></span>
+    <button class="icon-btn" id="btnTheme" type="button" title="切换到深色主题" aria-label="切换到深色主题">
+      <svg class="ico-moon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M16.6 12.7A7.3 7.3 0 0 1 7.3 3.4a7.6 7.6 0 1 0 9.3 9.3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+      <svg class="ico-sun" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="3.7" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M10 1.6v2.2M10 16.2v2.2M1.6 10h2.2M16.2 10h2.2M4.1 4.1l1.6 1.6M14.3 14.3l1.6 1.6M15.9 4.1l-1.6 1.6M5.7 14.3l-1.6 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </button>
   </header>
 
   <main data-page-node-id="tupREJygNpD1xyyXbPJLZ5">
@@ -531,7 +593,7 @@ body.max .canvas-area{padding:10px}
 
           <div class="out-info" id="outInfo" data-page-node-id="v7BloII7BqSf3QrOuqRcyL">—</div>
 
-          <label class="chk" id="keepExifBox"><input type="checkbox" id="keepExif"><span>保留 EXIF 拍摄信息</span></label>
+          <label class="chk" id="keepExifBox"><input type="checkbox" id="keepExif" checked><span>保留 EXIF 拍摄信息</span></label>
           <div class="sec-sub" id="keepExifNote"></div>
 
           <button class="btn ghost" id="btnReset" data-page-node-id="DHKY4xf9mHMHGXKBCPGgCN">恢复默认设置</button>
@@ -574,7 +636,7 @@ body.max .canvas-area{padding:10px}
 <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden data-page-node-id="sWgc8BjbYS4qk3s456aWc0">
 <input type="file" id="jsonInput" accept="application/json,.json" hidden data-page-node-id="xLroFnarezt6ygU4NG3ZG6">
 
-<script>
+<script id="app">
 "use strict";
 
 /* ============================================================
@@ -1158,7 +1220,7 @@ const state = {
     format: 'image/jpeg',
     quality: 92,
     outSize: 'orig',
-    keepExif: false,
+    keepExif: true,          /* 默认保留拍摄信息：多数人导出后是想发社交平台的，丢掉 EXIF 反而意外 */
     fields: { model: true, lens: true, params: true, date: true, custom: false }
   }
 };
@@ -3269,7 +3331,60 @@ function buildPanel(){
   setupLogoUpload();
 }
 
+/* ============================================================
+   外观主题：默认跟随系统，用户手动选过之后以他的选择为准并持久化
+   ============================================================ */
+const THEME_KEY = 'photoframe.theme.v1';
+const THEME_META = { light: '#ffffff', dark: '#1a1a19' };
+const mqDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+function storedTheme(){
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return (v === 'light' || v === 'dark') ? v : null;
+  } catch(e){ return null; }
+}
+
+function systemTheme(){
+  return (mqDark && mqDark.matches) ? 'dark' : 'light';
+}
+
+function applyTheme(t, persist){
+  const r = document.documentElement;
+  r.setAttribute('data-theme', t);
+  r.style.colorScheme = t;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_META[t] || THEME_META.light);
+  if (persist){
+    try { localStorage.setItem(THEME_KEY, t); } catch(e){}
+  }
+  const b = $('btnTheme');
+  if (b){
+    const label = t === 'dark' ? '切换到浅色主题' : '切换到深色主题';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+  }
+}
+
+function setupTheme(){
+  applyTheme(storedTheme() || systemTheme(), false);
+  // 没手动选过就跟着系统实时切换；选过就尊重他的选择，不再跟随
+  if (mqDark && mqDark.addEventListener){
+    mqDark.addEventListener('change', () => {
+      if (!storedTheme()) applyTheme(systemTheme(), false);
+    });
+  }
+  const b = $('btnTheme');
+  if (!b) return;
+  b.addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+    // 滚动条占位可能随主题变化，重算一次预览尺寸
+    scheduleRender();
+  });
+}
+
 function boot(){
+  setupTheme();
   buildTabs();
   buildPanel();
   setupDrop();

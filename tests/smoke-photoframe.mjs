@@ -74,12 +74,18 @@ function buildExifJpeg() {
 }
 
 /* ---------- 2. 造页面：摘掉内嵌脚本 → 装 canvas/bitmap 桩 → 再 eval ---------- */
-function makePage() {
+function makePage(opts = {}) {
   let html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  const m = html.match(/<script>([\s\S]*?)<\/script>/);
-  if (!m) throw new Error('没找到内嵌脚本');
+  // 必须按 id 取脚本。页面里主题引导脚本排在主脚本前面，
+  // 用「第一个 <script>」这种位置假设会拿到错的那个。
+  const mTheme = html.match(/<script id="theme-boot">([\s\S]*?)<\/script>/);
+  const m = html.match(/<script id="app">([\s\S]*?)<\/script>/);
+  if (!mTheme) throw new Error('没找到主题引导脚本');
+  if (!m) throw new Error('没找到内嵌主脚本');
+  const THEME = mTheme[1];
   const APP = m[1];
-  html = html.replace(/<script>[\s\S]*?<\/script>/, '');
+  html = html.replace(/<script id="theme-boot">[\s\S]*?<\/script>/, '')
+             .replace(/<script id="app">[\s\S]*?<\/script>/, '');
 
   // 页面脚本是严格模式，间接 eval 会把顶层 const 关在自己的词法环境里。
   // 末尾追加调试出口暴露内部符号（仅测试用，不写回源文件）。
@@ -109,7 +115,10 @@ function makePage() {
   snapshot: snapshot, pushHistory: pushHistory, undo: undo, redo: redo, resetHistory: resetHistory,
   measureSize: measureSize, updateOutInfo: updateOutInfo, renderAndEncode: renderAndEncode,
   applyTemplate: applyTemplate, cycleRatio: cycleRatio,
-  outSizes: OUT_SIZES, formats: FORMATS
+  outSizes: OUT_SIZES, formats: FORMATS,
+  /* ---- 外观主题 ---- */
+  applyTheme: applyTheme, systemTheme: systemTheme, storedTheme: storedTheme,
+  themeKey: THEME_KEY, themeMeta: THEME_META
 };`;
 
   const vc = new VirtualConsole();
@@ -178,6 +187,21 @@ function makePage() {
     return origAppend(node);
   };
 
+  // matchMedia 桩：主题默认跟随系统，测试需要能控制「系统偏好」
+  w.matchMedia = (q) => ({
+    media: q,
+    matches: /prefers-color-scheme:\s*dark/.test(q) ? !!opts.systemDark : false,
+    addEventListener() { }, removeEventListener() { },
+    addListener() { }, removeListener() { }
+  });
+  try {
+    w.localStorage.removeItem('photoframe.theme.v1');
+    if (opts.storedTheme) w.localStorage.setItem('photoframe.theme.v1', opts.storedTheme);
+  } catch (e) { }
+
+  // 还原真实加载顺序：主题引导脚本先落地，主脚本后跑
+  w.eval(THEME);
+
   w.eval(APP_EXPOSED);
   return { dom, w, ctxs };
 }
@@ -197,6 +221,13 @@ const fire = (n, t) => n.dispatchEvent(new w.Event(t, { bubbles: true }));
 const setRange = (n, v) => { n.value = String(v); fire(n, 'input'); };
 const NO_TEXT = { model: false, lens: false, params: false, date: false, custom: false };
 const SOME_TEXT = { model: true, lens: false, params: true, date: true, custom: false };
+
+/* ---- 出厂默认：一进页面就该成立，必须在任何测试改动状态之前断言 ---- */
+check('出厂默认「保留 EXIF 拍摄信息」为开', o().keepExif === true, String(o().keepExif));
+check('出厂默认「保留 EXIF」复选框已勾选', D.getElementById('keepExif').checked === true);
+check('出厂默认主题跟随系统（本环境为浅色 → light）',
+  w.document.documentElement.getAttribute('data-theme') === 'light',
+  w.document.documentElement.getAttribute('data-theme'));
 
 /* ================= 第 1 层：面板渲染 ================= */
 check('模板卡片 7 个（新增胶片/相纸/浮层）', $$('#tplGrid .tpl').length === 7, $$('#tplGrid .tpl').length + '');
@@ -1144,6 +1175,141 @@ check('中途取消会给出明确提示', (D.getElementById('toast').textConten
   D.getElementById('toast').textContent);
 check('取消后不会卡在忙碌态', D.getElementById('prog').hidden === true && !D.getElementById('actionbar').classList.contains('busy'));
 w.URL.createObjectURL = origCreateURL;
+
+/* ================= 第 17 层：保留 EXIF 默认 + 外观主题 ================= */
+
+/* ---- 17.1 重置后依然回到「默认开启」 ---- */
+click(D.getElementById('btnReset'));
+await tick();
+check('重置后「保留 EXIF」回到默认开启',
+  o().keepExif === true && D.getElementById('keepExif').checked === true,
+  String(o().keepExif) + ' / checked=' + D.getElementById('keepExif').checked);
+
+const cbExif = D.getElementById('keepExif');
+cbExif.checked = false; fire(cbExif, 'change');
+check('取消勾选后状态同步为关', o().keepExif === false);
+cbExif.checked = true; fire(cbExif, 'change');
+check('重新勾选后状态同步为开', o().keepExif === true);
+
+/* ---- 17.2 主题默认跟随系统，用户选过则以用户为准 ---- */
+const pLight = makePage({ systemDark: false }); await tick();
+check('系统浅色 → 默认浅色',
+  pLight.w.document.documentElement.getAttribute('data-theme') === 'light',
+  pLight.w.document.documentElement.getAttribute('data-theme'));
+
+const pDark = makePage({ systemDark: true }); await tick();
+check('系统深色 → 默认深色',
+  pDark.w.document.documentElement.getAttribute('data-theme') === 'dark',
+  pDark.w.document.documentElement.getAttribute('data-theme'));
+
+const pSavedLight = makePage({ systemDark: true, storedTheme: 'light' }); await tick();
+check('用户选过浅色后，系统深色不再覆盖',
+  pSavedLight.w.document.documentElement.getAttribute('data-theme') === 'light',
+  pSavedLight.w.document.documentElement.getAttribute('data-theme'));
+
+const pSavedDark = makePage({ systemDark: false, storedTheme: 'dark' }); await tick();
+check('用户选过深色后，系统浅色也不再覆盖',
+  pSavedDark.w.document.documentElement.getAttribute('data-theme') === 'dark',
+  pSavedDark.w.document.documentElement.getAttribute('data-theme'));
+
+/* ---- 17.3 顶栏切换按钮 ---- */
+const pt = makePage({ systemDark: false }); await tick();
+const wt = pt.w, Dt = wt.document;
+const btnTheme = Dt.getElementById('btnTheme');
+const tClick = () => btnTheme.dispatchEvent(new wt.MouseEvent('click', { bubbles: true }));
+
+check('顶栏有主题切换按钮', !!btnTheme);
+check('浅色时按钮提示切到深色', /深色/.test(btnTheme.getAttribute('title') || ''), btnTheme.getAttribute('title'));
+check('浅色时月牙图标可见、太阳图标隐藏',
+  wt.getComputedStyle(Dt.querySelector('.ico-moon')).display !== 'none' &&
+  wt.getComputedStyle(Dt.querySelector('.ico-sun')).display === 'none',
+  wt.getComputedStyle(Dt.querySelector('.ico-moon')).display + '/' + wt.getComputedStyle(Dt.querySelector('.ico-sun')).display);
+
+tClick();
+check('点击后切到深色',
+  wt.document.documentElement.getAttribute('data-theme') === 'dark',
+  wt.document.documentElement.getAttribute('data-theme'));
+check('深色时按钮提示切回浅色', /浅色/.test(btnTheme.getAttribute('title') || ''), btnTheme.getAttribute('title'));
+check('深色时太阳图标可见、月牙隐藏',
+  wt.getComputedStyle(Dt.querySelector('.ico-sun')).display !== 'none' &&
+  wt.getComputedStyle(Dt.querySelector('.ico-moon')).display === 'none',
+  wt.getComputedStyle(Dt.querySelector('.ico-sun')).display + '/' + wt.getComputedStyle(Dt.querySelector('.ico-moon')).display);
+check('选择已持久化到 localStorage',
+  wt.localStorage.getItem('photoframe.theme.v1') === 'dark',
+  String(wt.localStorage.getItem('photoframe.theme.v1')));
+check('color-scheme 同步为 dark（原生控件跟随）',
+  wt.document.documentElement.style.colorScheme === 'dark',
+  wt.document.documentElement.style.colorScheme);
+check('theme-color 同步为深色底（移动端地址栏）',
+  Dt.querySelector('meta[name="theme-color"]').getAttribute('content') === '#1a1a19',
+  Dt.querySelector('meta[name="theme-color"]').getAttribute('content'));
+
+tClick();
+check('再点一次切回浅色', wt.document.documentElement.getAttribute('data-theme') === 'light');
+check('持久化跟着更新为 light', wt.localStorage.getItem('photoframe.theme.v1') === 'light');
+
+/* ---- 17.4 主题绝不能影响导出画面 ---- */
+Object.assign(o(), { template: 'minimal', ratio: 'orig', fields: { ...SOME_TEXT } });
+const sigOf = () => JSON.stringify(ctxs.flatMap(c => c.texts)
+  .map(t => [t.t, t.fill, t.font, t.x, t.y, t.align, t.baseline]));
+
+api.applyTheme('light', false);
+ctxs.length = 0; api.renderPreview();
+const sigLight = sigOf();
+const cvLight = await api.renderToCanvas(api.state.items[0], Object.assign({}, o(), { quality: 0.9 }));
+
+api.applyTheme('dark', false);
+ctxs.length = 0; api.renderPreview();
+const sigDark = sigOf();
+const cvDark = await api.renderToCanvas(api.state.items[0], Object.assign({}, o(), { quality: 0.9 }));
+api.applyTheme('light', false);
+
+check('换主题后预览绘制内容逐项一致（导出与主题解耦）',
+  sigLight === sigDark && sigLight.length > 40,
+  sigLight === sigDark ? sigLight.length + ' 字符完全一致' : '绘制结果不一致');
+check('换主题后导出画布尺寸不变',
+  cvLight.width === cvDark.width && cvLight.height === cvDark.height,
+  cvLight.width + '×' + cvLight.height + ' vs ' + cvDark.width + '×' + cvDark.height);
+
+/* ---- 17.5 深色配色必须真的能读（对比度 ≥ 4.5:1） ---- */
+const rawHtml = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const cssBlock = rawHtml.slice(rawHtml.indexOf('<style>'), rawHtml.indexOf('</style>'));
+check('CSS 里存在深色主题块', /\[data-theme=dark\]\{/.test(cssBlock));
+
+const dk = cssBlock.slice(cssBlock.indexOf('[data-theme=dark]{'));
+const varOf = (name) => {
+  const m = dk.match(new RegExp(name + '\\s*:\\s*(#[0-9a-fA-F]{3,6})'));
+  return m ? m[1] : null;
+};
+/* 最暗的底不是 --surface 而是 --surface-2（说明框、拖放区都用它），
+   三级以下文字必须在它上面也达标，否则会在那些区块里读不清 */
+const CONTRAST_PAIRS = [
+  ['--ink', '--surface'], ['--ink', '--surface-2'], ['--ink', '--bg'],
+  ['--ink-2', '--surface'], ['--ink-2', '--surface-2'],
+  ['--ink-3', '--surface'], ['--ink-3', '--surface-2'],
+  ['--ink-4', '--surface'], ['--ink-4', '--surface-2'],
+  ['--placeholder', '--surface'], ['--placeholder', '--surface-2'],
+  ['--warn', '--surface'], ['--warn', '--surface-2'],
+  ['--danger', '--surface'], ['--danger', '--surface-2'],
+  ['--on-ink', '--ink'],
+  ['--badge-ink', '--badge-bg'], ['--chip-on-ink', '--chip-on-bg']
+];
+const weakPairs = [];
+for (const [fg, bg] of CONTRAST_PAIRS) {
+  const a = varOf(fg), b = varOf(bg);
+  if (!a || !b) { weakPairs.push(fg + '/' + bg + '=未定义'); continue; }
+  const r = api.contrast(a, b);
+  if (r < 4.5) weakPairs.push(fg + '/' + bg + '=' + r.toFixed(2));
+}
+check('深色主题所有文字配对都达到 4.5:1',
+  weakPairs.length === 0,
+  weakPairs.join(' ') || CONTRAST_PAIRS.length + ' 组全达标');
+
+/* ---- 17.6 内联脚本数量守卫：将来再加脚本不会漏测 ---- */
+const inlineTags = (rawHtml.match(/<script[^>]*>/g) || []).filter(s => !/\ssrc=/.test(s));
+check('内联脚本恰好 2 个且带 id（主题引导 + 主脚本）',
+  inlineTags.length === 2 && rawHtml.includes('<script id="app">') && rawHtml.includes('<script id="theme-boot">'),
+  inlineTags.length + ' 个内联脚本');
 
 /* ================= 汇总 ================= */
 console.log('\n通过 ' + ok.length + ' 项：');

@@ -7,7 +7,9 @@
   "scripts": {
     "test": "node tests/smoke-photoframe.mjs",
     "test:layout": "node tests/check-preview-size.mjs",
-    "test:all": "npm test && npm run test:layout"
+    "test:dark": "node tests/check-dark-theme.mjs",
+    "test:all": "npm test && npm run test:layout && npm run test:dark",
+    "shots": "node tests/shot-photoframe.mjs"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"
