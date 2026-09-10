@@ -8,7 +8,8 @@
     "test": "node tests/smoke-photoframe.mjs",
     "test:layout": "node tests/check-preview-size.mjs",
     "test:dark": "node tests/check-dark-theme.mjs",
-    "test:all": "npm test && npm run test:layout && npm run test:dark",
+    "test:offline": "node tests/check-offline.mjs",
+    "test:all": "npm test && npm run test:layout && npm run test:dark && npm run test:offline",
     "shots": "node tests/shot-photoframe.mjs"
   },
   "devDependencies": {
