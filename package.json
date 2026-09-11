@@ -9,7 +9,8 @@
     "test:layout": "node tests/check-preview-size.mjs",
     "test:dark": "node tests/check-dark-theme.mjs",
     "test:offline": "node tests/check-offline.mjs",
-    "test:all": "npm test && npm run test:layout && npm run test:dark && npm run test:offline",
+    "test:pwa": "node pwa/tests/check-pwa.mjs",
+    "test:all": "npm test && npm run test:layout && npm run test:dark && npm run test:offline && npm run test:pwa",
     "shots": "node tests/shot-photoframe.mjs"
   },
   "devDependencies": {

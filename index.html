@@ -6,6 +6,14 @@
 <meta name="color-scheme" content="light dark" data-page-node-id="WemWovwlkIUyBB1ExsrjuH">
 <meta name="theme-color" content="#ffffff">
 <title>留白 · 边框水印工坊</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="留白">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="./pwa/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./pwa/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./pwa/icons/icon-512.png">
 <script id="theme-boot">
 /* 主题必须在样式表之前落地，否则深色用户打开页面会看到一次白闪 */
 (function(){
@@ -3370,6 +3378,32 @@ function applyTheme(t, persist){
   }
 }
 
+/* PWA Service Worker 注册
+   - 仅在 https / localhost（安全上下文）下注册
+   - file://（双击打开网页版）静默跳过，不破坏既有使用方式
+   - 注册失败不抛、不影响主功能
+   - 监听控制器变化：有新 SW 在等时提示用户刷新 */
+function registerSW(){
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    if (!window.isSecureContext) return;  // file://、http:// 不可用
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // 检测更新：新 SW 进入 waiting 状态时通知它接管
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            // 新版本就绪：让新 SW 跳过等待、自动接管
+            // 用户的照片/模板/主题都在 localStorage，reload 不会丢数据
+            sw.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    }).catch(() => { /* 静默 */ });
+  } catch(e) { /* 静默 */ }
+}
+
 function setupTheme(){
   applyTheme(storedTheme() || systemTheme(), false);
   // 没手动选过就跟着系统实时切换；选过就尊重他的选择，不再跟随
@@ -3388,6 +3422,7 @@ function setupTheme(){
 }
 
 function boot(){
+  registerSW();
   setupTheme();
   buildTabs();
   buildPanel();

@@ -12,3 +12,9 @@ tests/.tmp/
 # macOS 应用构建产物（./macos/build.sh 可随时重建）
 macos/build/
 macos/dist/
+
+# PWA 自测工作目录（Chrome profile、临时缓存）
+pwa/tests/.tmp-pwa/
+
+# macOS 桌面服务残留（图标生成时偶尔会吐出）
+pwa/.DS_Store
