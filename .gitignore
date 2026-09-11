@@ -8,3 +8,7 @@ tests/.tmp/
 
 # macOS 资源分叉文件（AppleDouble），常见于外置盘或压缩包解压后
 ._*
+
+# macOS 应用构建产物（./macos/build.sh 可随时重建）
+macos/build/
+macos/dist/
