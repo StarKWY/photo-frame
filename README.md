@@ -3,7 +3,7 @@
 给照片加边框和参数水印的单文件网页工具。**照片全程在浏览器本地处理，不上传任何服务器**——双击 `index.html` 就能用，不需要装任何东西。
 
 > **🍎 macOS 用户**：项目已包含原生 `.app` 封装，见 [`macos/`](macos/)。构建后双击 `dist/留白.app` 即可，完全离线，Dock 里也有图标。
-> **📱 安卓/iPhone 用户**：项目已包含 PWA 封装，见 [`pwa/`](pwa/)。把仓库部署到任意 HTTPS 站点后用 Chrome/Safari 打开，菜单里选"添加到主屏幕"即可作为 App 使用，完全离线、HEIC 也能解码。
+> **📱 安卓/iPhone 用户**：项目已包含 PWA 封装，见 [`pwa/`](pwa/)。把仓库部署到任意 HTTPS 站点后用 Chrome/Safari 打开，菜单里选"添加到主屏幕"即可作为 App 使用，完全离线、HEIC 也能解码。最省事的部署方式是 **GitHub Pages**（仓库原样托管，无需构建），步骤见 [`pwa/README.md`](pwa/README.md#方案-dgithub-pages推荐零成本)。
 
 ## 它解决什么
 
@@ -100,8 +100,15 @@ HEIC 这一条的细节：
 ```
 index.html          # 全部代码：HTML + CSS + JS，无构建步骤
 tests/              # 测试与截图工具
+docs/               # 技术文档与封装分析
 package.json        # 仅声明 jsdom
 ```
+
+## 文档
+
+- [**技术文档**](docs/technical-architecture.md) —— 面向开发者：架构、代码分区、数据流、关键算法（EXIF 解析 / 手写 ZIP32 / 主色量化 / EXIF 原地改写）、主题系统、三端封装、测试体系与踩坑记录
+- [封装可行性分析](docs/packaging-feasibility.md) —— 封装成 macOS / Android 的路线、HEIC 三方案、上架门槛与风险
+- [macOS 原生版](macos/README.md)、[PWA 版](pwa/README.md) —— 各自的构建与使用说明
 
 ## 开发记录
 

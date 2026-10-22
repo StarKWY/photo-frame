@@ -1,14 +1,19 @@
 /* ============================================================
    sw.js —— Service Worker
    缓存策略：
-   - App Shell（index.html、manifest、图标）→ install 阶段预缓存
-   - 同源 GET 请求 → cache-first，回退 network
+   - 页面导航（HTML）→ network-first：联网时永远拿最新页面，
+     断网时回退缓存。否则 cache-first 会让已安装用户永远停在旧版本
+     （SW 脚本自身不变就不会触发更新）。
+   - 其它同源 GET 资源 → cache-first，回退 network
+   - install 阶段预缓存 App Shell（manifest、图标、index.html）
    - 跨域资源（jsdelivr heic2any）→ 不拦截，让浏览器走自身缓存
 
    PWA 部署：manifest 与本 sw.js 都放在站点根，所以 './' 就是 index.html。
+   路径全部保持相对，因此部署到 https://<user>.github.io/<repo>/ 这类
+   子路径站点时也无需改动。
    ============================================================ */
 
-const VERSION = '2026-09-11-1';
+const VERSION = '2026-10-22-1';
 const SHELL_CACHE = `photoframe-shell-${VERSION}`;
 const RUNTIME_CACHE = `photoframe-runtime-${VERSION}`;
 
@@ -74,7 +79,31 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 同源：cache-first
+    // 页面导航：network-first
+    // 联网时直接取新 HTML（'no-cache' 绕过 HTTP 缓存的 max-age），
+    // 并顺手更新缓存；失败才回退缓存。这样发版后用户刷新即见新版。
+    if (req.mode === 'navigate') {
+        event.respondWith(
+            fetch(req, { cache: 'no-cache' })
+                .then((resp) => {
+                    if (resp && resp.status === 200 && resp.type === 'basic') {
+                        const clone = resp.clone();
+                        caches.open(SHELL_CACHE).then((cache) => cache.put(req, clone));
+                    }
+                    return resp;
+                })
+                .catch(() => caches.match(req)
+                    .then((hit) => hit || caches.match('./index.html'))
+                    // 首次安装且断网、缓存也没命中时，别让 respondWith 拿到 undefined
+                    .then((hit) => hit || new Response('离线，且本地暂无缓存。', {
+                        status: 503,
+                        headers: { 'content-type': 'text/plain; charset=utf-8' },
+                    })))
+        );
+        return;
+    }
+
+    // 同源静态资源：cache-first
     event.respondWith(
         caches.match(req).then((hit) => {
             if (hit) return hit;

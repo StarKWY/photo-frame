@@ -54,6 +54,24 @@ python3 -m http.server 8000
 4. 部署完成后访问 `https://<your-name>.pages.dev`
 5. 在手机 Chrome/Safari 打开 → 菜单 → "添加到主屏幕"
 
+### 方案 D：GitHub Pages（推荐，零成本）
+
+仓库本身就是可直接托管的静态站点，**不需要任何构建步骤**。发布源选
+「Deploy from a branch → main → /(root)」即可。
+
+注意两点：
+
+- **仓库要 Public**（免费账号的 Pages 只支持公开仓库；私有仓库需要 GitHub Pro）。
+- 根目录的 `.nojekyll` 不能删。它让 Pages 跳过 Jekyll 处理，直接原样托管。
+
+站点地址是 `https://<用户名>.github.io/<仓库名>/`，属于**子路径部署**。
+本项目的 manifest、图标、SW 全部使用相对路径，SW 的 scope 会自动收敛到
+`/<仓库名>/`，实测无需改任何代码（已有 19 项子路径回归覆盖）。
+
+> 更新发布：`git push` 后 Pages 大约 1 分钟内生效。SW 的页面导航走
+> network-first，所以联网用户刷新即见新版；CDN 本身有约 10 分钟缓存，
+> 极端情况下稍等即可。断网时回退到预缓存的旧版本。
+
 ## 自测
 
 ```bash
